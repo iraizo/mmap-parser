@@ -2,6 +2,9 @@
 name = "wownav-parser"
 version = "0.1.0"
 edition = "2021"
+description = "A mmap parser written in Rust focusing on Trinitycore/vmangos .mmap/.mmtile files"
+license-file = "LICENSE.txt"
+repository = "https://github.com/iraizo/wownav-parser"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
