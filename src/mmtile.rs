@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bytemuck::AnyBitPattern;
 use core::ffi::{c_float, c_int, c_uint};
 use log::error;
@@ -66,32 +67,42 @@ pub struct MmapTileHeader {
     uses_liquids: u32,
 }
 
-impl MmapTileHeader {
-    pub fn from_bytes(buffer: &[u8]) -> Result<Self, ()> {
-        let header = *bytemuck::from_bytes::<MmapTileHeader>(&buffer);
+impl TryFrom<&[u8]> for MmapTileHeader {
+    type Error = anyhow::Error;
+
+    fn try_from(buffer: &[u8]) -> Result<Self, Self::Error> {
+        let header = match bytemuck::try_from_bytes::<MmapTileHeader>(&buffer) {
+            Ok(header) => header,
+            Err(err) => return Err(anyhow!("Error parsing to struct: {}", err)),
+        };
 
         if header.mmap_magic != MMAP_MAGIC {
-            return Err(error!(
+            return Err(anyhow!(
                 "Invalid MMAP_MAGIC: {}, current: {}",
-                header.mmap_magic, MMAP_MAGIC
+                header.mmap_magic,
+                MMAP_MAGIC
             ));
         }
 
         if header.mmap_version != MMAP_VERSION {
-            return Err(error!(
+            return Err(anyhow!(
                 "Invalid MMAP_VERSION: {}, current: {}",
-                header.mmap_version, MMAP_VERSION
+                header.mmap_version,
+                MMAP_VERSION
             ));
         }
 
         /* TODO: check for header.size */
 
-        Ok(header)
+        Ok(*header)
     }
 }
 
-impl DtMeshHeader {
-    pub fn from_bytes(buffer: &[u8]) -> Result<Self, ()> {
-        Ok(*bytemuck::from_bytes::<DtMeshHeader>(&buffer))
+impl TryFrom<&[u8]> for DtMeshHeader {
+    type Error = bytemuck::PodCastError;
+
+    fn try_from(buffer: &[u8]) -> Result<Self, Self::Error> {
+        let header = bytemuck::try_from_bytes::<DtMeshHeader>(&buffer)?;
+        Ok(*header)
     }
 }
