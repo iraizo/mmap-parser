@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod test {
-    use std::mem::size_of;
-
-    use wownav_parser::{mmap::DtNavMeshParams, mmtile::MmapTileHeader};
+    use wownav_parser::mmtile::{DtMeshHeader, MmapTileHeader};
 
     #[ctor::ctor]
     fn init() {
@@ -14,7 +12,7 @@ mod test {
         let buffer = [
             80, 65, 77, 77, 7, 0, 0, 0, 15, 0, 0, 0, 116, 163, 1, 0, 1, 0, 0, 0,
         ];
-        insta::assert_debug_snapshot!(MmapTileHeader::from_bytes(&buffer));
+        insta::assert_debug_snapshot!(MmapTileHeader::try_from(&buffer[..]));
     }
 
     #[test]
@@ -27,6 +25,6 @@ mod test {
             0, 150, 69, 4, 0, 112, 64,
         ];
 
-        insta::assert_debug_snapshot!(&buffer);
+        insta::assert_debug_snapshot!(DtMeshHeader::try_from(&buffer[..]));
     }
 }
