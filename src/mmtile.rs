@@ -2,11 +2,27 @@ use anyhow::anyhow;
 use bytemuck::AnyBitPattern;
 use core::ffi::{c_float, c_int, c_uint};
 use log::error;
+use std::{fs::File, intrinsics::size_of, io::Read};
 
 /// Hi
 
 const MMAP_MAGIC: u32 = 0x4d4d4150; // 'MMAP'
 const MMAP_VERSION: u32 = 15;
+
+/// A magic number used to detect compatibility of navigation tile data.
+const DT_NAVMESH_MAGIC: usize =
+    ('D' as usize) << 24 | ('N' as usize) << 16 | ('A' as usize) << 8 | 'V' as usize;
+
+/// A version number used to detect compatibility of navigation tile data.
+const DT_NAVMESH_VERSION: i8 = 7;
+
+/// A magic number used to detect the compatibility of navigation tile states.
+const DT_NAVMESH_STATE_MAGIC: usize =
+    ('D' as usize) << 24 | ('N' as usize) << 16 | ('M' as usize) << 8 | ('S' as usize);
+
+/// A version number used to detect compatibility of navigation tile states.
+const DT_NAVMESH_STATE_VERSION: i8 = 1;
+
 #[derive(Debug, AnyBitPattern, Copy, Clone)]
 #[repr(C)]
 pub struct DtMeshHeader {
@@ -76,33 +92,79 @@ impl TryFrom<&[u8]> for MmapTileHeader {
             Err(err) => return Err(anyhow!("Error parsing to struct: {}", err)),
         };
 
-        if header.mmap_magic != MMAP_MAGIC {
+        MmapTileHeader::sanity(*header)?;
+
+        Ok(*header)
+    }
+}
+
+impl TryFrom<File> for MmapTileHeader {
+    type Error = anyhow::Error;
+
+    fn try_from(mut f: File) -> Result<Self, Self::Error> {
+        let mut buffer = vec![0u8; size_of::<MmapTileHeader>()];
+        f.read_exact(&mut buffer)?;
+
+        let header = match bytemuck::try_from_bytes::<MmapTileHeader>(&buffer) {
+            Ok(header) => header,
+            Err(err) => return Err(anyhow!("Error parsing to struct: {}", err)),
+        };
+
+        MmapTileHeader::sanity(*header)?;
+
+        Ok(*header)
+    }
+}
+
+impl MmapTileHeader {
+    fn sanity(self) -> Result<(), anyhow::Error> {
+        /* TODO: check for header.size */
+        if self.mmap_magic != MMAP_MAGIC {
             return Err(anyhow!(
                 "Invalid MMAP_MAGIC: {}, current: {}",
-                header.mmap_magic,
+                self.mmap_magic,
                 MMAP_MAGIC
             ));
         }
 
-        if header.mmap_version != MMAP_VERSION {
+        if self.mmap_version != MMAP_VERSION {
             return Err(anyhow!(
                 "Invalid MMAP_VERSION: {}, current: {}",
-                header.mmap_version,
+                self.mmap_version,
                 MMAP_VERSION
             ));
         }
 
         /* TODO: check for header.size */
 
-        Ok(*header)
+        Ok(())
     }
 }
 
 impl TryFrom<&[u8]> for DtMeshHeader {
-    type Error = bytemuck::PodCastError;
+    type Error = anyhow::Error;
 
     fn try_from(buffer: &[u8]) -> Result<Self, Self::Error> {
-        let header = bytemuck::try_from_bytes::<DtMeshHeader>(&buffer)?;
+        let header = match bytemuck::try_from_bytes::<DtMeshHeader>(&buffer) {
+            Ok(header) => header,
+            Err(err) => return Err(anyhow!("Error parsing to struct: {}", err)),
+        };
+
+        DtMeshHeader::sanity(*header)?;
         Ok(*header)
+    }
+}
+
+impl DtMeshHeader {
+    fn sanity(self) -> Result<(), anyhow::Error> {
+        if self.magic != DT_NAVMESH_MAGIC as i32 {
+            return Err(anyhow!("Invalid navmesh magic"));
+        }
+
+        if self.version != DT_NAVMESH_VERSION as i32 {
+            return Err(anyhow!("Invalid navmesh version"));
+        }
+
+        Ok(())
     }
 }

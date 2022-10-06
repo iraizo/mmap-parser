@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+
     use wownav_parser::mmtile::{DtMeshHeader, MmapTileHeader};
 
     #[test]
@@ -8,6 +10,16 @@ mod test {
             80, 65, 77, 77, 7, 0, 0, 0, 15, 0, 0, 0, 116, 163, 1, 0, 1, 0, 0, 0,
         ];
         insta::assert_debug_snapshot!(MmapTileHeader::try_from(&buffer[..]));
+    }
+
+    #[test]
+    fn parse_tile_header_file() {
+        let f = File::open(
+            env!("CARGO_MANIFEST_DIR").to_owned() + "\\resources\\tests\\0002239.mmtile",
+        )
+        .unwrap();
+
+        insta::assert_debug_snapshot!(MmapTileHeader::try_from(f).unwrap());
     }
 
     #[test]
